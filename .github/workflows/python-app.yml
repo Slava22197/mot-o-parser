@@ -1,0 +1,31 @@
+name: Run Parser Twice A Week
+
+on:
+  schedule:
+    - cron: '0 4 * * 1,4'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        pip install requests beautifulsoup4
+
+    - name: Run parser
+      run: python parser.py
+
+    - name: Upload result file
+      uses: actions/upload-artifact@v3
+      with:
+        name: mot-o_final
+        path: mot-o_final.xml
