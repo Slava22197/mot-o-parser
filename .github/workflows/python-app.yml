@@ -8,30 +8,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
         pip install requests beautifulsoup4
 
-    - name: Run parser
+    - name: Run parser script
       run: python parser.py
 
-    - name: Upload result file
-      uses: actions/upload-artifact@v4
-      with:
-        name: mot-o_final
-        path: mot-o_final.xml
+    - name: Install rclone
+      run: sudo apt-get update && sudo apt-get install -y rclone
+
+    - name: Configure rclone
+      run: |
+        mkdir -p ~/.config/rclone
+        echo "${{ secrets.RCLONE_CONF }}" > ~/.config/rclone/rclone.conf
+
     - name: Upload XML to Google Drive
-      uses: gautamkrishnar/google-drive-upload-git-action@v1.2.0
-      with:
-        credentials: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
-        folderId: ПІДСТАВ_СВІЙ_FOLDER_ID
-        target: mot-o_final.xml
+      run: |
+        rclone copy mot-o_final.xml remote_drive:/mot-o-parser-files/
