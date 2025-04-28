@@ -29,3 +29,9 @@ jobs:
       with:
         name: mot-o_final
         path: mot-o_final.xml
+    - name: Upload XML to Google Drive
+      uses: gautamkrishnar/google-drive-upload-git-action@v1.2.0
+      with:
+        credentials: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+        folderId: ПІДСТАВ_СВІЙ_FOLDER_ID
+        target: mot-o_final.xml
