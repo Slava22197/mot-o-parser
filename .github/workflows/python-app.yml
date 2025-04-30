@@ -2,7 +2,7 @@ name: Run Parser Twice A Week
 
 on:
   schedule:
-    - cron: '0 4 * * 1,4'
+    - cron: '0 4 * * 1,4'  # Понеділок і четвер о 04:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
       run: |
         pip install requests beautifulsoup4
 
-    - name: Run parser script
+    - name: Run parser
       run: python parser.py
 
     - name: Install rclone
@@ -31,8 +31,8 @@ jobs:
     - name: Configure rclone
       run: |
         mkdir -p ~/.config/rclone
-        echo "${{ secrets.RCLONE_CONF }}" > ~/.config/rclone/rclone.conf
+        echo "${{ secrets.RCLONE_CONF_BASE64 }}" | base64 -d > ~/.config/rclone/rclone.conf
 
-    - name: Upload XML to Google Drive
+    - name: Upload to Google Drive
       run: |
         rclone copy mot-o_final.xml remote_drive:/mot-o-parser-files/
