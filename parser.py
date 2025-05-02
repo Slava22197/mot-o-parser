@@ -6,9 +6,17 @@ import re
 from urllib.parse import urljoin
 
 base_url = "https://mot-o.com"
+headers = {'User-Agent': 'Mozilla/5.0'}
+
+def get_total_pages():
+    response = requests.get(f"{base_url}/zapchasti/", headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    pages = soup.select('.pagination li a')
+    numbers = [int(a.text) for a in pages if a.text.isdigit()]
+    return max(numbers) if numbers else 1
 
 def get_product_details(product_url, product_name):
-    product_resp = requests.get(product_url)
+    product_resp = requests.get(product_url, headers=headers)
     soup = BeautifulSoup(product_resp.text, 'html.parser')
 
     images = []
@@ -46,29 +54,28 @@ def get_product_details(product_url, product_name):
         'brand': brand
     }
 
-# Основна структура
+# XML структура
 root = ET.Element('yml_catalog', date=time.strftime("%Y-%m-%d %H:%M"))
 shop = ET.SubElement(root, 'shop')
-
 ET.SubElement(shop, 'name').text = "mot-o.com"
 ET.SubElement(shop, 'company').text = "mot-o.com"
 ET.SubElement(shop, 'url').text = base_url
-
 currencies = ET.SubElement(shop, 'currencies')
 ET.SubElement(currencies, 'currency', id="UAH", rate="1")
-
 categories_block = ET.SubElement(shop, 'categories')
 offers = ET.SubElement(shop, 'offers')
 
-# Збір унікальних груп
 category_map = {}
 category_id_counter = 1
 all_products = []
 
-for page in range(1, 1000):
-    print(f"📄 Сторінка {page}")
+total_pages = get_total_pages()
+print(f"🔍 Знайдено сторінок: {total_pages}")
+
+for page in range(1, total_pages + 1):
+    print(f"📄 Парсинг сторінки {page}")
     url = f"{base_url}/zapchasti/?page={page}"
-    response = requests.get(url)
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
 
     for card in soup.select('.product-layout .product-thumb'):
@@ -86,26 +93,23 @@ for page in range(1, 1000):
 
     time.sleep(1)
 
-# Створення категорій
+print(f"✅ Знайдено товарів: {len(all_products)}")
+
+# Категорії
 for group_name, group_id in category_map.items():
     ET.SubElement(categories_block, 'category', id=str(group_id)).text = group_name
 
-# Створення товарів
+# Товари
 for details, card, product_url, product_name in all_products:
-    # Визначаємо ID для offer
-    clean_id = re.sub(r'\D', '', details['sku'])  # Забираємо все, крім цифр
+    clean_id = re.sub(r'\D', '', details['sku'])
     offer_id = clean_id if clean_id else str(hash(product_name) % 1000000)
 
     offer = ET.SubElement(offers, 'offer', id=offer_id)
-
     ET.SubElement(offer, 'url').text = product_url
 
     price_tag = card.select_one('.price')
-    if price_tag:
-        match = re.search(r'\d+(?:[\.,]\d+)?', price_tag.text)
-        price = match.group().replace(',', '.') if match else '0'
-    else:
-        price = '0'
+    match = re.search(r'\d+(?:[\.,]\d+)?', price_tag.text) if price_tag else None
+    price = match.group().replace(',', '.') if match else '0'
     ET.SubElement(offer, 'price').text = price
     ET.SubElement(offer, 'currencyId').text = "UAH"
     ET.SubElement(offer, 'categoryId').text = str(category_map[details['group']])
@@ -116,13 +120,8 @@ for details, card, product_url, product_name in all_products:
     ET.SubElement(offer, 'vendor').text = details['brand']
     ET.SubElement(offer, 'vendorCode').text = details['sku']
     ET.SubElement(offer, 'model').text = details['model']
-
-    name_combined = f"{details['group']} {product_name}"
-    ET.SubElement(offer, 'name').text = name_combined
-
-    description = ET.SubElement(offer, 'description')
-    description.text = f"<![CDATA[{details['description']}]]>"
-
+    ET.SubElement(offer, 'name').text = f"{details['group']} {product_name}"
+    ET.SubElement(offer, 'description').text = f"<![CDATA[{details['description']}]]>"
     ET.SubElement(offer, 'available').text = 'true'
 
 tree = ET.ElementTree(root)
